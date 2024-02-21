@@ -11,7 +11,6 @@
 #include "freertos/task.h"
 #include "driver/gpio.h"
 #include "esp_log.h"
-#include "led_strip.h"
 #include "sdkconfig.h"
 
 static const char *TAG = "example";
@@ -24,6 +23,8 @@ static const char *TAG = "example";
 static uint8_t s_led_state = 0;
 
 #ifdef CONFIG_BLINK_LED_RMT
+
+#include "led_strip.h"
 
 static led_strip_handle_t led_strip;
 

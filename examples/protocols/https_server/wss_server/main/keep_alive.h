@@ -17,6 +17,10 @@
     .not_alive_after_ms = 10000,            \
 }
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct wss_keep_alive_storage;
 typedef struct wss_keep_alive_storage* wss_keep_alive_t;
 typedef bool (*wss_check_client_alive_cb_t)(wss_keep_alive_t h, int fd);
@@ -94,3 +98,6 @@ void wss_keep_alive_set_user_ctx(wss_keep_alive_t h, void *ctx);
  * @return ctx user context
  */
 void* wss_keep_alive_get_user_ctx(wss_keep_alive_t h);
+#ifdef __cplusplus
+}
+#endif

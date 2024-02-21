@@ -189,6 +189,7 @@ esp_err_t esp_vfs_fat_register(const char* base_path, const char* fat_drive, siz
 esp_err_t esp_vfs_fat_unregister_path(const char* base_path)
 {
     size_t ctx = find_context_index_by_path(base_path);
+    ESP_LOGE(TAG, "FF_VOLUMES (%d), ctx (%d)", FF_VOLUMES, ctx);
     if (ctx == FF_VOLUMES) {
         return ESP_ERR_INVALID_STATE;
     }

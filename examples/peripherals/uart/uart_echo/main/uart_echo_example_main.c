@@ -1,82 +1,78 @@
-/* UART Echo Example
 
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
-
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
-*/
-#include <stdio.h>
+#include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "driver/uart.h"
-#include "driver/gpio.h"
-#include "sdkconfig.h"
-#include "esp_log.h"
+#include "esp_system.h"
+#include "esp_spi_flash.h"
+#include "string.h"
+#include "hal/usb_serial_jtag_ll.h"
+#include "freertos/queue.h"
 
-/**
- * This is an example which echos any data it receives on configured UART back to the sender,
- * with hardware flow control turned off. It does not use UART driver event queue.
- *
- * - Port: configured UART
- * - Receive (Rx) buffer: on
- * - Transmit (Tx) buffer: off
- * - Flow control: off
- * - Event queue: off
- * - Pin assignment: see defines below (See Kconfig)
- */
-
-#define ECHO_TEST_TXD (CONFIG_EXAMPLE_UART_TXD)
-#define ECHO_TEST_RXD (CONFIG_EXAMPLE_UART_RXD)
-#define ECHO_TEST_RTS (UART_PIN_NO_CHANGE)
-#define ECHO_TEST_CTS (UART_PIN_NO_CHANGE)
-
-#define ECHO_UART_PORT_NUM      (CONFIG_EXAMPLE_UART_PORT_NUM)
-#define ECHO_UART_BAUD_RATE     (CONFIG_EXAMPLE_UART_BAUD_RATE)
-#define ECHO_TASK_STACK_SIZE    (CONFIG_EXAMPLE_TASK_STACK_SIZE)
-
-static const char *TAG = "UART TEST";
 
 #define BUF_SIZE (1024)
+#define RD_BUF_SIZE (BUF_SIZE)
+#define ASYNC_QUEUE_SIZE 100
+static QueueHandle_t usj_queue;
 
-static void echo_task(void *arg)
+int usj_event;
+
+void mytask1(void *pvParameter)
 {
-    /* Configure parameters of an UART driver,
-     * communication pins and install the driver */
-    uart_config_t uart_config = {
-        .baud_rate = ECHO_UART_BAUD_RATE,
-        .data_bits = UART_DATA_8_BITS,
-        .parity    = UART_PARITY_DISABLE,
-        .stop_bits = UART_STOP_BITS_1,
-        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .source_clk = UART_SCLK_DEFAULT,
-    };
-    int intr_alloc_flags = 0;
-
-#if CONFIG_UART_ISR_IN_IRAM
-    intr_alloc_flags = ESP_INTR_FLAG_IRAM;
-#endif
-
-    ESP_ERROR_CHECK(uart_driver_install(ECHO_UART_PORT_NUM, BUF_SIZE * 2, 0, 0, NULL, intr_alloc_flags));
-    ESP_ERROR_CHECK(uart_param_config(ECHO_UART_PORT_NUM, &uart_config));
-    ESP_ERROR_CHECK(uart_set_pin(ECHO_UART_PORT_NUM, ECHO_TEST_TXD, ECHO_TEST_RXD, ECHO_TEST_RTS, ECHO_TEST_CTS));
-
-    // Configure a temporary buffer for the incoming data
-    uint8_t *data = (uint8_t *) malloc(BUF_SIZE);
-
-    while (1) {
-        // Read data from the UART
-        int len = uart_read_bytes(ECHO_UART_PORT_NUM, data, (BUF_SIZE - 1), 20 / portTICK_PERIOD_MS);
-        // Write data back to the UART
-        uart_write_bytes(ECHO_UART_PORT_NUM, (const char *) data, len);
-        if (len) {
-            data[len] = '\0';
-            ESP_LOGI(TAG, "Recv str: %s", (char *) data);
+    while (1)
+    {
+        if (!uxQueueMessagesWaiting(usj_queue) && usb_serial_jtag_ll_rxfifo_data_available() )
+        {
+        usj_event = 42;
+        if (xQueueSendToBack(usj_queue, (void * )&usj_event, 0)!= pdPASS ){
+            printf("U_S_J Q full\n");
         }
+        }
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
+    vTaskDelete(NULL);
 }
 
+void mytask2(void *pvParameter)
+{
+
+
+    while (1)
+    {
+        printf("♥\n");
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        printf("*\n");
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+    vTaskDelete(NULL);
+}
+
+void mytask3(void *pvParameter)
+{
+    uint8_t *rxbuf;
+    int cnt;
+    rxbuf = (uint8_t *)malloc(64);
+    int rxcnt;
+    while (1)
+    {
+        if (xQueueReceive(usj_queue, (void*)&usj_event, 0))
+        {
+            rxcnt = usb_serial_jtag_ll_read_rxfifo(rxbuf,64);
+            cnt = (int)usb_serial_jtag_ll_write_txfifo((const uint8_t *)rxbuf, rxcnt);
+            usb_serial_jtag_ll_txfifo_flush();
+            // printf("Event %d\n", usj_event);
+        }
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
+    free(rxbuf);
+    vTaskDelete(NULL);
+}
 void app_main(void)
 {
-    xTaskCreate(echo_task, "uart_echo_task", ECHO_TASK_STACK_SIZE, NULL, 10, NULL);
+    usj_queue = xQueueCreate(ASYNC_QUEUE_SIZE, sizeof(usj_event));
+    printf("U_S_J Q free spaces: %d\n", uxQueueSpacesAvailable(usj_queue));
+
+    xTaskCreate(mytask1, "mytask1", 1024 * 5, NULL, 1, NULL);
+    xTaskCreate(mytask2, "mytask2", 1024 * 5, NULL, 1, NULL);
+    xTaskCreate(mytask3, "mytask3", 1024 * 5, NULL, 1, NULL);
+
 }

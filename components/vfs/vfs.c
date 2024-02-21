@@ -680,9 +680,10 @@ DIR* esp_vfs_opendir(const char* name)
 struct dirent* esp_vfs_readdir(DIR* pdir)
 {
     const vfs_entry_t* vfs = get_vfs_for_index(pdir->dd_vfs_idx);
+
     struct _reent* r = __getreent();
     if (vfs == NULL) {
-       __errno_r(r) = EBADF;
+    //    __errno_r(r) = EBADF;
         return NULL;
     }
     struct dirent* ret;
@@ -692,6 +693,7 @@ struct dirent* esp_vfs_readdir(DIR* pdir)
 
 int esp_vfs_readdir_r(DIR* pdir, struct dirent* entry, struct dirent** out_dirent)
 {
+
     const vfs_entry_t* vfs = get_vfs_for_index(pdir->dd_vfs_idx);
     struct _reent* r = __getreent();
     if (vfs == NULL) {

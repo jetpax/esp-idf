@@ -1,4 +1,11 @@
-idf_component_register(SRCS "wss_server_example.c" "keep_alive.c"
+idf_component_register(SRCS "wss_server_example.cpp" "keep_alive.c"
                     INCLUDE_DIRS "."
                     EMBED_TXTFILES "certs/servercert.pem"
-                                   "certs/prvtkey.pem")
+                                   "certs/prvtkey.pem"
+                                   "ui/index.html"
+                                   "ui/xterm.js"
+                                   "ui/xterm.css"
+                                   "ui/xterm-addon-web-links.js"
+                                   "ui/favicon.ico"
+                                   "ui/logo.svg"
+                                   "ui/close.svg")
